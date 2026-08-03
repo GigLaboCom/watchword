@@ -8,9 +8,9 @@
 # Watchword
 
 <p align="center">
-  <a href="https://github.com/giglabo/watchword/pkgs/container/watchword"><img src="https://img.shields.io/badge/ghcr.io-giglabo%2Fwatchword-2496ED?logo=docker&logoColor=white" alt="Container image on GHCR" /></a>
-  <a href="https://github.com/giglabo/watchword/actions/workflows/ci.yml"><img src="https://github.com/giglabo/watchword/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
-  <a href="https://github.com/giglabo/watchword/releases/latest"><img src="https://img.shields.io/github/v/release/giglabo/watchword?sort=semver" alt="Latest release" /></a>
+  <a href="https://github.com/GigLaboCom/watchword/pkgs/container/watchword"><img src="https://img.shields.io/badge/ghcr.io-giglabocom%2Fwatchword-2496ED?logo=docker&logoColor=white" alt="Container image on GHCR" /></a>
+  <a href="https://github.com/GigLaboCom/watchword/actions/workflows/ci.yml"><img src="https://github.com/GigLaboCom/watchword/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+  <a href="https://github.com/GigLaboCom/watchword/releases/latest"><img src="https://img.shields.io/github/v/release/GigLaboCom/watchword?sort=semver" alt="Latest release" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="MIT license" /></a>
 </p>
 
@@ -36,7 +36,7 @@ LLM conversations are ephemeral. Watchword gives your assistant persistent, name
 - **Health endpoints** for Kubernetes liveness/readiness probes
 - **Customizable tool descriptions** — tune the prompts your LLM sees via `config.yaml`
 - **Transports**: stdio, SSE, Streamable HTTP, or combined HTTP mode
-- **Prebuilt multi-arch container image** — `ghcr.io/giglabo/watchword`, published on every release for `linux/amd64` and `linux/arm64`
+- **Prebuilt multi-arch container image** — `ghcr.io/giglabocom/watchword`, published on every release for `linux/amd64` and `linux/arm64`
 
 ## Quick start
 
@@ -46,7 +46,7 @@ Every tagged release is published to the GitHub Container Registry as a multi-ar
 (`linux/amd64` + `linux/arm64`) image — no build step required:
 
 ```bash
-docker pull ghcr.io/giglabo/watchword:latest
+docker pull ghcr.io/giglabocom/watchword:latest
 ```
 
 Run it with HTTP transport and a SQLite database on a named volume:
@@ -59,7 +59,7 @@ docker run --rm -p 8001:8080 \
   -e WORDSTORE_DATABASE_DRIVER=sqlite \
   -e WORDSTORE_DATABASE_SQLITE_PATH=/data/word-store.db \
   -e WORDSTORE_AUTH_TOKENS=your-secret-token \
-  ghcr.io/giglabo/watchword:latest
+  ghcr.io/giglabocom/watchword:latest
 ```
 
 - Streamable HTTP: `http://localhost:8001/mcp`
@@ -90,12 +90,12 @@ This starts PostgreSQL and Watchword with HTTP transport on port 8001:
 - SSE: `http://localhost:8001/sse`
 
 `docker-compose.yml` builds the image from source. To run the published image
-instead, swap `build: .` for the released tag:
+instead, swap `build: .` for a released tag:
 
 ```yaml
 services:
   watchword:
-    image: ghcr.io/giglabo/watchword:1.6.1
+    image: ghcr.io/giglabocom/watchword:<version>
 ```
 
 ### Run PostgreSQL only (for local stdio development)
@@ -142,15 +142,17 @@ No local Go toolchain needed — run the published image in stdio mode:
         "-e", "WORDSTORE_DATABASE_DRIVER=sqlite",
         "-e", "WORDSTORE_DATABASE_SQLITE_PATH=/data/word-store.db",
         "-e", "WORDSTORE_AUTH_ENABLED=false",
-        "ghcr.io/giglabo/watchword:1.6.1"
+        "ghcr.io/giglabocom/watchword:<version>"
       ]
     }
   }
 }
 ```
 
-Keep `-i` (stdin stays open) and pin the tag so an upstream release never changes
-your client's behaviour mid-session.
+Replace `<version>` with a published tag from the
+[package page](https://github.com/GigLaboCom/watchword/pkgs/container/watchword). Keep
+`-i` (stdin stays open), and pin an exact version rather than `latest` so an upstream
+release never changes your client's behaviour mid-session.
 
 ### Claude Code (stdio)
 
@@ -540,13 +542,18 @@ Official images are published to the GitHub Container Registry on every `v*` tag
 [`.github/workflows/release.yml`](.github/workflows/release.yml):
 
 ```
-ghcr.io/giglabo/watchword
+ghcr.io/giglabocom/watchword
 ```
+
+> **Releases up to and including `v1.6.1`** were published under the organization's
+> previous name, at `ghcr.io/giglabo/watchword` — that path still pulls. Everything
+> released after the rename lives at `ghcr.io/giglabocom/watchword`. Browse the
+> available tags on the [package page](https://github.com/GigLaboCom/watchword/pkgs/container/watchword).
 
 | Tag | Example | Moves? | Use for |
 |-----|---------|--------|---------|
-| `{major}.{minor}.{patch}` | `1.6.1` | never | production — fully pinned |
-| `{major}.{minor}` | `1.6` | on each patch release | pick up patch fixes automatically |
+| `{major}.{minor}.{patch}` | `1.7.0` | never | production — fully pinned |
+| `{major}.{minor}` | `1.7` | on each patch release | pick up patch fixes automatically |
 | `{major}` | `1` | on each minor release | pick up backwards-compatible features |
 | `latest` | `latest` | on each stable release | local experiments only |
 | `sha-{commit}` | `sha-9f7be2c` | never | tracing an image back to its commit |
@@ -558,10 +565,10 @@ Pre-releases (`v1.4.0-alpha.1`) publish only the exact version tag — they neve
 
 ```bash
 # Pull a pinned release
-docker pull ghcr.io/giglabo/watchword:1.6.1
+docker pull ghcr.io/giglabocom/watchword:<version>
 
 # Inspect the tags and platforms that were published
-docker buildx imagetools inspect ghcr.io/giglabo/watchword:1.6.1
+docker buildx imagetools inspect ghcr.io/giglabocom/watchword:<version>
 ```
 
 The image is public — no `docker login` is needed to pull it. If your environment
@@ -575,7 +582,7 @@ echo "$GITHUB_TOKEN" | docker login ghcr.io -u YOUR_GITHUB_USERNAME --password-s
 For immutable deployments, pin by digest instead of tag:
 
 ```bash
-docker pull ghcr.io/giglabo/watchword@sha256:<digest>
+docker pull ghcr.io/giglabocom/watchword@sha256:<digest>
 ```
 
 Image details: `alpine:3.21` base, static `CGO_ENABLED=0` binary at
@@ -652,7 +659,7 @@ spec:
     spec:
       containers:
         - name: watchword
-          image: ghcr.io/giglabo/watchword:1.6.1
+          image: ghcr.io/giglabocom/watchword:<version>
           args: ["--config", "/etc/watchword/config.yaml"]
           ports:
             - name: http
@@ -708,7 +715,7 @@ spec:
 ```
 
 Notes:
-- **Image**: `ghcr.io/giglabo/watchword` is public, so no `imagePullSecrets` are required. Pin a patch tag (or a digest) rather than `latest`.
+- **Image**: `ghcr.io/giglabocom/watchword` is public, so no `imagePullSecrets` are required. Pin a patch tag (or a digest) rather than `latest`.
 - **Replicas**: Safe to run multiple replicas against the same PostgreSQL — collision resolution uses database-level unique constraints.
 - **Migrations**: Run automatically on startup (tracked via `schema_migrations` table).
 - **Secrets**: Never put tokens in ConfigMap. Use Kubernetes Secrets or an external secret manager.

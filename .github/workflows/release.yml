@@ -6,7 +6,10 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  # Pinned rather than derived from ${{ github.repository }}: an org/repo rename
+  # would silently move the published image to a new path. Keep in sync with the
+  # "Container image" section of README.md.
+  IMAGE_NAME: giglabocom/watchword
 
 jobs:
   secrets:
