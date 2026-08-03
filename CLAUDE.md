@@ -39,7 +39,7 @@ docker compose up -d    # Run with PostgreSQL + Streamable HTTP (via supergatewa
 - **Compact list/search responses** — `list_entries`, `search_entries`, `search_words` omit payload to reduce token usage; `get_entry`/`get_entry_by_word` return full content
 - **delete_entry accepts UUID or word** — tries UUID parse first, falls back to word lookup
 - **entry_type column** — `text` (default) or `file`; file entries store JSON metadata in payload field
-- **Streamable HTTP via supergateway** — Docker image wraps the stdio binary with [supergateway](https://github.com/supercorp-ai/supergateway) to expose Streamable HTTP on `/mcp`. Uses `--stateful` mode to avoid the child-process OOM leak ([PR #111](https://github.com/supercorp-ai/supergateway/pull/111)). Built from the PR #111 branch for the stateless leak fix as well.
+- **Streamable HTTP served natively** — the `http` transport serves both `/mcp` and `/sse` on one port; no supergateway sidecar is involved anymore.
 
 ## Commit Guidelines
 
@@ -51,10 +51,14 @@ Uses `github.com/mark3labs/mcp-go` for MCP protocol support (stdio + SSE transpo
 
 ## Docker
 
-The Dockerfile is a multi-stage build:
-1. Go builder — compiles the `watchword` binary
-2. Supergateway builder — clones and builds supergateway from the PR #111 fork (OOM fix)
-3. Final `node:22-alpine` image — runs supergateway wrapping the watchword binary
+The Dockerfile is a two-stage build:
+1. `golang:1.24-alpine` builder — cross-compiles a static `CGO_ENABLED=0` binary for `$TARGETOS/$TARGETARCH`
+2. Final `alpine:3.21` image — `/usr/local/bin/watchword` + `config.yaml` at `/etc/watchword/config.yaml`
+
+`.github/workflows/release.yml` builds and pushes multi-arch (`linux/amd64`, `linux/arm64`)
+images to `ghcr.io/giglabo/watchword` on every `v*` tag, tagged via `docker/metadata-action`
+with `{version}`, `{major}.{minor}`, `{major}`, `latest`, and `sha-<commit>`.
+Keep the README's Container image tag table in sync when those tag rules change.
 
 `docker-compose.yml` runs PostgreSQL + watchword with Streamable HTTP on port 8001.
 `docker-compose.postgres.yml` runs PostgreSQL only (for local stdio development on port 5434).
