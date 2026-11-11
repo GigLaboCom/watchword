@@ -157,7 +157,7 @@ func (s *FileService) UploadFile(ctx context.Context, word string, filename stri
 		}
 		if s.proxySigner != nil {
 			result.ProxyUploadURL = s.proxySigner.SignUpload(created.ID.String(), filename)
-			result.Hint = fmt.Sprintf("Upload your file with: curl -X PUT -H 'Content-Type: %s' -T '%s' '%s' (or use proxy_upload_url if the presigned URL is not accessible)", contentType, filename, result.ProxyUploadURL)
+			result.Hint += fmt.Sprintf(". If S3 (amazonaws.com) is not reachable from your environment, use proxy_upload_url instead (limited to ~100 MB, it goes through Cloudflare): curl -X PUT -H 'Content-Type: %s' -T '%s' '%s'", contentType, filename, result.ProxyUploadURL)
 		}
 		if expiresAt != nil {
 			result.ExpiresAt = expiresAt.Format(time.RFC3339)
@@ -226,7 +226,7 @@ func (s *FileService) DownloadFile(ctx context.Context, word string) (*DownloadR
 
 	if s.proxySigner != nil {
 		result.ProxyURL = s.proxySigner.SignDownload(entry.ID.String(), meta.Filename)
-		result.Hint = fmt.Sprintf("Download with: curl -o '%s' '%s' (or use the proxy_url if the presigned URL is not accessible)", meta.Filename, result.ProxyURL)
+		result.Hint += fmt.Sprintf(". If S3 (amazonaws.com) is not reachable from your environment, use proxy_url instead: curl -o '%s' '%s'", meta.Filename, result.ProxyURL)
 	}
 
 	return result, nil

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -217,4 +218,110 @@ func mustParseUUID(t *testing.T, s string) uuid.UUID {
 		t.Fatalf("uuid.Parse(%q): %v", s, err)
 	}
 	return id
+}
+
+type fakeProxySigner struct{}
+
+func (fakeProxySigner) SignDownload(entryID, filename string) string {
+	return "https://proxy.example/dl?id=" + entryID + "&f=" + filename
+}
+
+func (fakeProxySigner) SignUpload(entryID, filename string) string {
+	return "https://proxy.example/ul?id=" + entryID + "&f=" + filename
+}
+
+// fallbackMarker separates the primary command in a hint from the proxy fallback.
+const fallbackMarker = "If S3 (amazonaws.com) is not reachable"
+
+// splitHint returns the primary part of a hint and the fallback part ("" if none).
+func splitHint(hint string) (primary, fallback string) {
+	if i := strings.Index(hint, fallbackMarker); i >= 0 {
+		return hint[:i], hint[i:]
+	}
+	return hint, ""
+}
+
+func TestUploadFile_Hint_PresignedFirst(t *testing.T) {
+	for _, withProxy := range []bool{false, true} {
+		t.Run(fmt.Sprintf("proxy=%v", withProxy), func(t *testing.T) {
+			svc, _, _ := newTestFileService(t)
+			if withProxy {
+				svc.SetProxySigner(fakeProxySigner{})
+			}
+			result, err := svc.UploadFile(context.Background(), "otter", "big.bin", "application/zip", nil)
+			if err != nil {
+				t.Fatalf("UploadFile: %v", err)
+			}
+			primary, fallback := splitHint(result.Hint)
+			wantPrimary := "curl -X PUT -H 'Content-Type: application/zip' -T 'big.bin' '" + result.UploadURL + "'"
+			if !strings.Contains(primary, wantPrimary) {
+				t.Errorf("primary hint %q does not contain %q", primary, wantPrimary)
+			}
+			if strings.Contains(primary, "proxy.example") {
+				t.Errorf("primary hint must not contain the proxy URL: %q", primary)
+			}
+			if !withProxy {
+				if result.ProxyUploadURL != "" || fallback != "" || strings.Contains(result.Hint, "proxy") {
+					t.Errorf("no proxy configured, but hint/result mention one: %q", result.Hint)
+				}
+				return
+			}
+			if result.ProxyUploadURL == "" {
+				t.Fatal("expected proxy_upload_url")
+			}
+			wantFallback := "curl -X PUT -H 'Content-Type: application/zip' -T 'big.bin' '" + result.ProxyUploadURL + "'"
+			if !strings.Contains(fallback, "proxy_upload_url") || !strings.Contains(fallback, wantFallback) {
+				t.Errorf("fallback hint %q should name proxy_upload_url and contain %q", fallback, wantFallback)
+			}
+			if !strings.Contains(fallback, "100 MB") {
+				t.Errorf("fallback hint should mention the ~100 MB limit: %q", fallback)
+			}
+			if strings.Contains(fallback, result.UploadURL) {
+				t.Errorf("fallback hint must not contain the presigned URL: %q", fallback)
+			}
+		})
+	}
+}
+
+func TestDownloadFile_Hint_PresignedFirst(t *testing.T) {
+	for _, withProxy := range []bool{false, true} {
+		t.Run(fmt.Sprintf("proxy=%v", withProxy), func(t *testing.T) {
+			svc, _, _ := newTestFileService(t)
+			if withProxy {
+				svc.SetProxySigner(fakeProxySigner{})
+			}
+			ctx := context.Background()
+			if _, err := svc.UploadFile(ctx, "heron", "video.mp4", "video/mp4", nil); err != nil {
+				t.Fatalf("UploadFile: %v", err)
+			}
+			result, err := svc.DownloadFile(ctx, "heron")
+			if err != nil {
+				t.Fatalf("DownloadFile: %v", err)
+			}
+			primary, fallback := splitHint(result.Hint)
+			wantPrimary := "curl -o 'video.mp4' '" + result.DownloadURL + "'"
+			if !strings.Contains(primary, wantPrimary) {
+				t.Errorf("primary hint %q does not contain %q", primary, wantPrimary)
+			}
+			if strings.Contains(primary, "proxy.example") {
+				t.Errorf("primary hint must not contain the proxy URL: %q", primary)
+			}
+			if !withProxy {
+				if result.ProxyURL != "" || fallback != "" || strings.Contains(result.Hint, "proxy") {
+					t.Errorf("no proxy configured, but hint/result mention one: %q", result.Hint)
+				}
+				return
+			}
+			if result.ProxyURL == "" {
+				t.Fatal("expected proxy_url")
+			}
+			wantFallback := "curl -o 'video.mp4' '" + result.ProxyURL + "'"
+			if !strings.Contains(fallback, "proxy_url") || !strings.Contains(fallback, wantFallback) {
+				t.Errorf("fallback hint %q should name proxy_url and contain %q", fallback, wantFallback)
+			}
+			if strings.Contains(fallback, result.DownloadURL) {
+				t.Errorf("fallback hint must not contain the presigned URL: %q", fallback)
+			}
+		})
+	}
 }
