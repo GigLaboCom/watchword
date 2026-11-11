@@ -46,6 +46,16 @@ docker compose up -d    # Run with PostgreSQL + Streamable HTTP (via supergatewa
 
 - Never add Claude as a co-author in commit messages (no `Co-Authored-By: Claude` lines).
 
+## Dependency Updates (Renovate)
+
+`renovate.json` drives the Renovate GitHub App (Dependency Dashboard issue in this repo):
+- Runs Mondays before 9am Europe/Berlin, max 5 open PRs; vulnerability fixes (GitHub + OSV) open immediately, labelled `security`.
+- Covers go.mod (`gomodTidy` keeps go.sum in sync), Dockerfile + docker-compose images, GitHub Actions, and the staticcheck version in `ci.yml` (via the `# renovate:` comment).
+- Groups: "Go modules (non-major)", "GitHub Actions", and "Go toolchain" (go directive + `golang` builder image move together).
+- Major updates wait for approval on the Dependency Dashboard. Dockerfile base images are pinned to digests.
+- Automerge only for minor/patch GitHub Actions and patch updates of direct Go modules, after CI is green. Never for Docker images, the toolchain, or majors.
+- Merging Renovate PRs does not release anything; releases still need a `v*` tag.
+
 ## MCP Library
 
 Uses `github.com/mark3labs/mcp-go` for MCP protocol support (stdio + SSE transports).

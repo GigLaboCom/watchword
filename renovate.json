@@ -1,0 +1,144 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended"
+  ],
+  "ignorePresets": [
+    "group:monorepos"
+  ],
+  "timezone": "Europe/Berlin",
+  "schedule": [
+    "before 9am on monday"
+  ],
+  "prConcurrentLimit": 5,
+  "postUpdateOptions": [
+    "gomodTidy"
+  ],
+  "platformAutomerge": true,
+  "automergeType": "pr",
+  "osvVulnerabilityAlerts": true,
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "schedule": [
+      "at any time"
+    ],
+    "dependencyDashboardApproval": false,
+    "labels": [
+      "security"
+    ]
+  },
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "staticcheck version pinned in CI (dominikh/staticcheck-action input)",
+      "managerFilePatterns": [
+        "/^\\.github/workflows/[^/]+\\.ya?ml$/"
+      ],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\s+version: [\"']?(?<currentValue>[^\"'\\s]+)"
+      ],
+      "versioningTemplate": "regex:^(?<major>\\d+)\\.(?<minor>\\d+)(\\.(?<patch>\\d+))?$"
+    }
+  ],
+  "packageRules": [
+    {
+      "description": "Major updates only after approval on the Dependency Dashboard",
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "dependencyDashboardApproval": true
+    },
+    {
+      "description": "Pin Dockerfile base images to digests",
+      "matchManagers": [
+        "dockerfile"
+      ],
+      "pinDigests": true
+    },
+    {
+      "description": "One PR for Go module minor/patch updates",
+      "matchManagers": [
+        "gomod"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch",
+        "digest"
+      ],
+      "groupName": "Go modules (non-major)",
+      "groupSlug": "go-modules-non-major"
+    },
+    {
+      "description": "Automerge patch updates of direct Go modules once CI is green",
+      "matchManagers": [
+        "gomod"
+      ],
+      "matchDepTypes": [
+        "require"
+      ],
+      "matchUpdateTypes": [
+        "patch"
+      ],
+      "automerge": true
+    },
+    {
+      "description": "One PR for GitHub Actions; minor/patch automerge once CI is green",
+      "matchManagers": [
+        "github-actions"
+      ],
+      "groupName": "GitHub Actions"
+    },
+    {
+      "matchManagers": [
+        "github-actions"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch",
+        "digest",
+        "pin",
+        "pinDigest"
+      ],
+      "automerge": true
+    },
+    {
+      "description": "Bump the go directive in go.mod (it is a minimum, so Renovate would otherwise never raise it)",
+      "matchManagers": [
+        "gomod"
+      ],
+      "matchDepTypes": [
+        "golang"
+      ],
+      "rangeStrategy": "bump"
+    },
+    {
+      "description": "Move the Go toolchain together: go directive in go.mod + golang builder image",
+      "matchDepNames": [
+        "go",
+        "golang"
+      ],
+      "groupName": "Go toolchain",
+      "automerge": false,
+      "groupSlug": "go-toolchain",
+      "matchDatasources": [
+        "golang-version",
+        "docker"
+      ]
+    },
+    {
+      "description": "Never automerge Dockerfile base images",
+      "matchManagers": [
+        "dockerfile"
+      ],
+      "automerge": false
+    },
+    {
+      "description": "Self-reference: never update our own published image",
+      "matchPackageNames": [
+        "ghcr.io/giglabocom/watchword",
+        "ghcr.io/giglabo/watchword"
+      ],
+      "enabled": false
+    }
+  ]
+}
