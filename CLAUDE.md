@@ -22,7 +22,8 @@ docker compose up -d    # Run with PostgreSQL + Streamable HTTP (via supergatewa
 - `internal/config/` — YAML + env var config loading
 - `internal/repository/` — Repository interface + SQLite/PostgreSQL implementations
 - `internal/service/` — Business logic (collision resolution, store, restore, search, file ops)
-- `internal/s3/` — S3 presigned URL client (aws-sdk-go-v2), Presigner interface
+- `internal/s3/` — S3 client (aws-sdk-go-v2): Presigner interface (presigned URLs, delete) + Streamer interface (GetObject/PutObject for the proxy)
+- `internal/proxy/` — HMAC-signed proxy endpoints `/dl` (download) and `/ul` (upload) that stream file bytes between client and S3
 - `internal/auth/` — Bearer token + JWT/JWKS validation, RFC 9728 Protected Resource Metadata, WWW-Authenticate headers
 - `internal/mcp/` — MCP server setup + tool handlers (text + file)
 - `internal/worker/` — Background expiration goroutine
@@ -35,7 +36,7 @@ docker compose up -d    # Run with PostgreSQL + Streamable HTTP (via supergatewa
 - **Domain errors → tool result errors** (not transport errors) — MCP client gets structured messages
 - **Collision resolution** — base word, then word2..word999, all within a transaction
 - **Auth per-transport** — stdio validates WORDSTORE_AUTH_TOKEN once at startup; SSE uses HTTP middleware
-- **S3 presigned URLs** — file tools generate presigned PUT/GET URLs; MCP server never touches file data. Conditionally registered only when S3 is configured
+- **S3 presigned URLs + optional proxy** — the `upload_file`/`download_file` MCP tools only return URLs, never file bytes. They always include presigned S3 PUT/GET URLs. When `s3.proxy` is configured they also include HMAC-signed `proxy_upload_url`/`proxy_url`, and then the server **does** carry file data: `GET /dl` streams S3 GetObject → client, `PUT /ul` streams client → S3 PutObject. Both must stay streaming (`io.Copy`, no `io.ReadAll`/whole-file buffers); the container runs with a 128Mi memory limit. `/dl` records completed downloads in `download_history` in the background with a detached context (`context.WithoutCancel` + timeout), because the request context is cancelled once the handler returns. File tools are registered only when S3 is configured
 - **Compact list/search responses** — `list_entries`, `search_entries`, `search_words` omit payload to reduce token usage; `get_entry`/`get_entry_by_word` return full content
 - **delete_entry accepts UUID or word** — tries UUID parse first, falls back to word lookup
 - **entry_type column** — `text` (default) or `file`; file entries store JSON metadata in payload field

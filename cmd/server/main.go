@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/mark3labs/mcp-go/server"
 
@@ -24,6 +25,16 @@ import (
 )
 
 const version = "1.0.0"
+
+// mcpSessionIdleTTL bounds per-session transport state in the Streamable HTTP
+// server. mcp-go keeps it forever by default, so clients that disconnect
+// without a DELETE leak memory; in production that grew until the container
+// was OOM-killed every few weeks.
+const mcpSessionIdleTTL = 30 * time.Minute
+
+func newStreamableHTTPServer(mcpSrv *server.MCPServer) *server.StreamableHTTPServer {
+	return server.NewStreamableHTTPServer(mcpSrv, server.WithSessionIdleTTL(mcpSessionIdleTTL))
+}
 
 func main() {
 	configPath := flag.String("config", "", "path to config file")
@@ -173,7 +184,7 @@ func main() {
 		}
 	case "streamable-http":
 		innerMux := http.NewServeMux()
-		innerMux.Handle("/mcp", server.NewStreamableHTTPServer(mcpSrv))
+		innerMux.Handle("/mcp", newStreamableHTTPServer(mcpSrv))
 		registerOAuthMetadata(innerMux, cfg)
 		outerMux := http.NewServeMux()
 		registerProxyHandler(outerMux, cfg, s3c, repo, logger)
@@ -192,7 +203,7 @@ func main() {
 	case "http":
 		// Serve both SSE and Streamable HTTP on the same port
 		innerMux := http.NewServeMux()
-		innerMux.Handle("/mcp", server.NewStreamableHTTPServer(mcpSrv))
+		innerMux.Handle("/mcp", newStreamableHTTPServer(mcpSrv))
 		sseSrv := server.NewSSEServer(mcpSrv,
 			server.WithSSEEndpoint("/sse"),
 			server.WithBaseURL(fmt.Sprintf("http://localhost:%d", cfg.Server.HTTPPort)),

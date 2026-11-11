@@ -1,12 +1,14 @@
 package proxy
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -15,7 +17,13 @@ import (
 	s3client "github.com/watchword/watchword/internal/s3"
 )
 
+// recordDownloadTimeout bounds the best-effort download-history write that
+// runs after the response has been sent.
+const recordDownloadTimeout = 10 * time.Second
+
 // Handler serves proxied file downloads with HMAC-signed URL validation.
+// The object body is streamed from S3 straight to the client (io.Copy with a
+// small fixed buffer); file content is never held in memory as a whole.
 type Handler struct {
 	secret   string
 	streamer s3client.Streamer
@@ -99,15 +107,25 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 
 	if _, err := io.Copy(w, body); err != nil {
-		h.logger.Error("failed to stream file", "entry_id", entryID, "error", err)
+		// Only completed downloads are recorded.
+		if r.Context().Err() != nil {
+			h.logger.Info("download aborted by client", "entry_id", entryID, "error", err)
+		} else {
+			h.logger.Error("failed to stream file", "entry_id", entryID, "error", err)
+		}
 		return
 	}
 
-	// Record download best-effort in background
+	// Record download best-effort in background. The request context is
+	// cancelled as soon as ServeHTTP returns, so detach from its cancellation
+	// (keeping its values) and bound the write with its own timeout.
+	clientIP := r.RemoteAddr
+	userAgent := r.UserAgent()
+	recordCtx := context.WithoutCancel(r.Context())
 	go func() {
-		clientIP := r.RemoteAddr
-		userAgent := r.UserAgent()
-		if err := h.repo.RecordDownload(r.Context(), id, entry.Word, filename, clientIP, userAgent); err != nil {
+		ctx, cancel := context.WithTimeout(recordCtx, recordDownloadTimeout)
+		defer cancel()
+		if err := h.repo.RecordDownload(ctx, id, entry.Word, filename, clientIP, userAgent); err != nil {
 			h.logger.Warn("failed to record download", "entry_id", entryID, "error", err)
 		}
 	}()
