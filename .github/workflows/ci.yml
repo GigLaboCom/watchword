@@ -30,7 +30,8 @@ jobs:
       - name: Staticcheck
         uses: dominikh/staticcheck-action@v1
         with:
-          version: latest
+          # renovate: datasource=github-releases depName=dominikh/go-tools
+          version: "2026.2.2"
 
   test:
     runs-on: ubuntu-latest
