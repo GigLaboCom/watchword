@@ -137,7 +137,7 @@ var defaultToolsConfig = ToolsConfig{
 		},
 	},
 	UploadFile: ToolDesc{
-		Description: "Upload a file via S3 presigned URL. Returns a presigned PUT URL and a keyword. The file data is NOT sent through this tool — instead, use the returned URL with curl or fetch to PUT the file directly to S3. Example: curl -X PUT -T myfile.pdf '<presigned_url>'. Same collision resolution as store_entry. IMPORTANT: Always tell the user the RETURNED word.",
+		Description: "Upload a file via S3 presigned URL. Returns a presigned PUT URL (upload_url) and a keyword. The file data is NOT sent through this tool — instead, use the returned URL with curl or fetch to PUT the file directly to S3. upload_url is the primary, fast path: always try it first, with the Content-Type header from the hint. Example: curl -X PUT -H 'Content-Type: application/pdf' -T myfile.pdf '<upload_url>'. proxy_upload_url (present only when the server proxy is enabled) is a fallback for sandboxes that cannot reach S3 (amazonaws.com); it goes through Cloudflare and is limited to ~100 MB. Same collision resolution as store_entry. IMPORTANT: Always tell the user the RETURNED word.",
 		Properties: map[string]string{
 			"word":         "A memorable keyword for this file.",
 			"filename":     "Original filename (e.g., 'report.pdf'). Used as part of the S3 key and returned on download.",
@@ -146,7 +146,7 @@ var defaultToolsConfig = ToolsConfig{
 		},
 	},
 	DownloadFile: ToolDesc{
-		Description: "Get a presigned download URL for a file entry. Returns a presigned GET URL, filename, and content type. The file data is NOT sent through this tool — instead, use the returned URL with curl or fetch to GET the file directly from S3. Example: curl -o '<filename>' '<presigned_url>'.",
+		Description: "Get a presigned download URL for a file entry. Returns a presigned GET URL (download_url), filename, and content type. The file data is NOT sent through this tool — instead, use the returned URL with curl or fetch to GET the file directly from S3. download_url is the primary, fast path: always try it first. Example: curl -o '<filename>' '<download_url>'. proxy_url (present only when the server proxy is enabled) is a fallback for sandboxes that cannot reach S3 (amazonaws.com); it is much slower because it goes through Cloudflare.",
 		Properties: map[string]string{
 			"word": "The keyword of the file entry to download.",
 		},
