@@ -507,6 +507,8 @@ s3:
 
 If `s3` is not configured, only the original text-based tools are registered — no S3 dependency. Partial S3 config (e.g. region set but no bucket, or missing credentials) does **not** fail startup — Watchword logs a warning and continues with the file tools disabled. To explicitly disable S3 in environments where partial `WORDSTORE_S3_*` env vars may leak in (e.g. shared k8s ConfigMaps), set `s3.enabled: false` (or `WORDSTORE_S3_ENABLED=false`) — the entire S3 block is then discarded after config load.
 
+**Client IP in `download_history`**: proxied downloads (`GET /dl`) record the client IP. Behind a reverse proxy the socket address is the proxy, so the IP is taken from request headers, in the order given by `CLIENT_IP_HEADERS` (default `cf-connecting-ip,x-forwarded-for,x-real-ip`; comma-separated, case-insensitive). For each header the first comma-separated entry is used (for `X-Forwarded-For` that is the original client); empty, `unknown` and non-IP values are skipped and ports are stripped. The socket address is the final fallback. Only trust these headers when every request reaches Watchword through a proxy that sets or overwrites them.
+
 ### Expiration
 
 | Setting | Env var | Default | Description |
