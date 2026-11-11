@@ -180,7 +180,10 @@ func TestHandler_RecordDownloadSurvivesRequestCancel(t *testing.T) {
 	signedURL := SignDownloadURL("http://localhost", secret, entryID.String(), "guide.zip", 5*time.Minute)
 	ctx, cancel := context.WithCancel(context.Background())
 	req := httptest.NewRequest(http.MethodGet, signedURL, nil).WithContext(ctx)
-	req.RemoteAddr = "203.0.113.7:4321"
+	req.RemoteAddr = "10.42.0.5:4321" // ingress pod
+	req.Header.Set("Cf-Connecting-Ip", "203.0.113.7")
+	req.Header.Set("X-Forwarded-For", "203.0.113.7, 104.16.0.1")
+	req.Header.Set("X-Real-Ip", "104.16.0.1") // Cloudflare edge
 	req.Header.Set("User-Agent", "curl/8")
 
 	handler.ServeHTTP(httptest.NewRecorder(), req)
@@ -198,7 +201,7 @@ func TestHandler_RecordDownloadSurvivesRequestCancel(t *testing.T) {
 		if !c.hasDeadline {
 			t.Error("RecordDownload ctx has no deadline; want a bounded timeout")
 		}
-		if c.clientIP != "203.0.113.7:4321" || c.userAgent != "curl/8" {
+		if c.clientIP != "203.0.113.7" || c.userAgent != "curl/8" {
 			t.Errorf("client info = %q / %q", c.clientIP, c.userAgent)
 		}
 	case <-time.After(5 * time.Second):

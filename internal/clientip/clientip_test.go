@@ -3,6 +3,7 @@ package clientip
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -149,5 +150,38 @@ func TestFromRequestReadsEnv(t *testing.T) {
 	r.Header.Set("X-Real-Ip", "198.51.100.3")
 	if got := FromRequest(r); got != "198.51.100.3" {
 		t.Errorf("FromRequest() = %q, want X-Real-IP value from env override", got)
+	}
+}
+
+func TestHeadersFromEnv(t *testing.T) {
+	tests := []struct {
+		name string
+		env  string
+		want []string
+	}{
+		{"empty env var means default", "", DefaultHeaders},
+		{"blank env var means default", " , ,", DefaultHeaders},
+		{"custom order", "x-real-ip, CF-Connecting-IP", []string{"x-real-ip", "CF-Connecting-IP"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv(EnvVar, tt.env)
+			got := HeadersFromEnv()
+			if strings.Join(got, ",") != strings.Join(tt.want, ",") {
+				t.Errorf("HeadersFromEnv() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestEmptyEnvVarUsesDefaultOrder(t *testing.T) {
+	t.Setenv(EnvVar, "")
+	r := httptest.NewRequest(http.MethodGet, "/", nil)
+	r.RemoteAddr = "10.42.0.5:51234"
+	r.Header.Set("Cf-Connecting-Ip", "198.51.100.1")
+	r.Header.Set("X-Forwarded-For", "198.51.100.2, 104.16.0.1")
+	r.Header.Set("X-Real-Ip", "104.16.0.1")
+	if got := FromRequestWith(r, HeadersFromEnv()); got != "198.51.100.1" {
+		t.Errorf("got %q, want CF-Connecting-IP value", got)
 	}
 }

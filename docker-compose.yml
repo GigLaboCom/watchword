@@ -32,6 +32,8 @@ services:
       WORDSTORE_LOGGING_FORMAT: "text"
       WORDSTORE_LOGGING_LEVEL: "debug"
       WORDSTORE_LOGGING_FILE: "/data/watchword.log"
+      # Client IP for download_history: headers tried in order (unset/empty = this default)
+      # CLIENT_IP_HEADERS: "cf-connecting-ip,x-forwarded-for,x-real-ip"
     volumes:
       - ./data:/data
 

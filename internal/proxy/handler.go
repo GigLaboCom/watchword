@@ -12,6 +12,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/watchword/watchword/internal/clientip"
 	"github.com/watchword/watchword/internal/domain"
 	"github.com/watchword/watchword/internal/repository"
 	s3client "github.com/watchword/watchword/internal/s3"
@@ -119,7 +120,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Record download best-effort in background. The request context is
 	// cancelled as soon as ServeHTTP returns, so detach from its cancellation
 	// (keeping its values) and bound the write with its own timeout.
-	clientIP := r.RemoteAddr
+	// r.RemoteAddr is the ingress pod; take the visitor from the proxy headers.
+	clientIP := clientip.FromRequest(r)
 	userAgent := r.UserAgent()
 	recordCtx := context.WithoutCancel(r.Context())
 	go func() {
